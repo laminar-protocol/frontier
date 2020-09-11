@@ -37,7 +37,7 @@ use frontier_rpc_primitives::{EthereumRuntimeRPCApi, ConvertTransaction, Transac
 
 pub use frontier_rpc_core::{EthApiServer, NetApiServer};
 
-fn internal_err(message: &str) -> Error {
+fn internal_err<T: ToString>(message: T) -> Error {
 	Error {
 		code: ErrorCode::InternalError,
 		message: message.to_string(),
@@ -503,8 +503,8 @@ impl<B, C, SC, P, CT, BE> EthApiT for EthApi<B, C, SC, P, CT, BE> where
 				nonce,
 				ethereum::TransactionAction::Call(to)
 			)
-			.map_err(|_| internal_err("executing call failed"))?
-			.ok_or(internal_err("inner executing call failed"))?;
+			.map_err(|err| internal_err(format!("internal error: {:?}", err)))?
+			.map_err(|err| internal_err(format!("executing call failed: {:?}", err)))?;
 
 		Ok(Bytes(ret))
 	}
@@ -517,7 +517,7 @@ impl<B, C, SC, P, CT, BE> EthApiT for EthApi<B, C, SC, P, CT, BE> where
 
 		let from = request.from.unwrap_or_default();
 		let gas_price = request.gas_price;
-		let gas_limit = request.gas.unwrap_or(U256::max_value());
+		let gas_limit = request.gas.unwrap_or(U256::max_value()); // TODO: this isn't safe
 		let value = request.value.unwrap_or_default();
 		let data = request.data.map(|d| d.0).unwrap_or_default();
 		let nonce = request.nonce;
@@ -536,8 +536,8 @@ impl<B, C, SC, P, CT, BE> EthApiT for EthApi<B, C, SC, P, CT, BE> where
 					_ => ethereum::TransactionAction::Create,
 				}
 			)
-			.map_err(|_| internal_err("executing call failed"))?
-			.ok_or(internal_err("inner executing call failed"))?;
+			.map_err(|err| internal_err(format!("internal error: {:?}", err)))?
+			.map_err(|err| internal_err(format!("executing call failed: {:?}", err)))?;
 
 		Ok(used_gas)
 	}
@@ -873,6 +873,6 @@ impl NetApiT for NetApi {
 	}
 
 	fn version(&self) -> Result<String> {
-		Ok("Frontier/v0.1.0".to_string())
+		Ok("10042".to_string())
 	}
 }
