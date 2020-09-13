@@ -31,6 +31,7 @@ use sp_runtime::generic::DigestItem;
 use frame_system::ensure_none;
 use ethereum_types::{H160, H64, H256, U256, Bloom};
 use sp_runtime::{
+	DispatchResult,
 	traits::UniqueSaturatedInto,
 	transaction_validity::{TransactionValidity, TransactionSource, ValidTransaction}
 };
@@ -118,7 +119,7 @@ decl_module! {
 				.map_err(|_| "Recover public key failed")?;
 			let source = H160::from(H256::from_slice(Keccak256::digest(&pubkey).as_slice()));
 
-			Self::execute(source, transaction);
+			Self::execute(source, transaction)?;
 		}
 
 		fn on_finalize(n: T::BlockNumber) {
@@ -235,7 +236,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Execute an Ethereum transaction, ignoring transaction signatures.
-	pub fn execute(source: H160, transaction: ethereum::Transaction) {
+	pub fn execute(source: H160, transaction: ethereum::Transaction) -> DispatchResult {
 		let transaction_hash = H256::from_slice(
 			Keccak256::digest(&rlp::encode(&transaction)).as_slice()
 		);
@@ -252,7 +253,7 @@ impl<T: Trait> Module<T> {
 					transaction.gas_price,
 					Some(transaction.nonce),
 					true,
-				).unwrap(); // TODO: handle error
+				)?; // TODO: handle error
 
 				TransactionStatus {
 					transaction_hash,
@@ -273,7 +274,7 @@ impl<T: Trait> Module<T> {
 					transaction.gas_price,
 					Some(transaction.nonce),
 					true,
-				).unwrap().1; // TODO: handle error
+				)?.1; // TODO: handle error
 
 				TransactionStatus {
 					transaction_hash,
@@ -295,5 +296,7 @@ impl<T: Trait> Module<T> {
 		};
 
 		Pending::append((transaction, status, receipt));
+
+		Ok(())
 	}
 }
